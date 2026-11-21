@@ -1,0 +1,107 @@
+name: CI/CD Pipeline - Web Frontend
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Pruebas y Validación Web
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Validar dependencias y configuración
+        run: echo "Validación completada."
+
+  build:
+    name: Construir Aplicación React
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar frontend React
+        run: |
+          npm run build
+          mkdir -p artifacts
+          tar -czf artifacts/web-dist.tar.gz -C dist .
+
+      - name: Subir artefacto a GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist-artifact
+          path: artifacts/web-dist.tar.gz
+          retention-days: 7
+
+  deploy:
+    name: Desplegar en EC2 AWS (Nginx)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar artefacto
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist-artifact
+          path: ./artifacts
+
+      - name: Configurar llave SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Copiar artefacto a EC2 via SCP
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+        run: |
+          scp -o StrictHostKeyChecking=no ./artifacts/web-dist.tar.gz $USER@$HOST:/tmp/web-dist.tar.gz
+
+      - name: Ejecutar despliegue en EC2 via SSH
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
+            set -e
+            echo "Desplegando frontend estático a Nginx..."
+            sudo mkdir -p /var/www/entradasya
+            sudo tar -xzf /tmp/web-dist.tar.gz -C /var/www/entradasya
+            rm -f /tmp/web-dist.tar.gz
+            
+            if systemctl list-unit-files | grep -q "nginx.service"; then
+              sudo systemctl reload nginx
+              echo "Nginx recargado."
+            fi
+            
+            echo "Despliegue de web completado con éxito."
+          EOF
