@@ -49,7 +49,7 @@ export default function Cartelera() {
         <div className="hero-publico" aria-hidden="true" />
         <div className="hero-texto">
           <h1>
-            <span className="linea">Vive los mejores</span><br />
+            <span className="linea">Vive los mejores MEJORES</span><br />
             <span className="linea"><span className="resaltado">eventos</span> en un solo lugar</span>
           </h1>
           <p>Conciertos, espectáculos, deportes y mucho más...</p>
