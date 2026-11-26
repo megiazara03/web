@@ -49,7 +49,7 @@ export default function Cartelera() {
         <div className="hero-publico" aria-hidden="true" />
         <div className="hero-texto">
           <h1>
-            <span className="linea">Welcome a EntradasYa v2.0.3! </span><br />
+            <span className="linea">Bienvinido a EntradasYa v2.0.3! </span><br />
             <span className="linea"><span className="resaltado">eventos</span> en un solo lugar</span>
           </h1>
           <p>Conciertos, espectáculos, deportes y mucho más...</p>
